@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { degToRad } from 'three/src/math/MathUtils';
 
-// Set up the scene, camera, and renderer
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
@@ -16,10 +16,9 @@ directionalLight.position.set(10, 10, 20).normalize();
 scene.add(directionalLight);
 
 const pointLight = new THREE.PointLight(0xffffff, 5, 1);
-pointLight.position.set(10, 10, 20); // Set the position of the light
+pointLight.position.set(10, 10, 20);
 scene.add(pointLight);
 
-// Load the GLTF model of the car
 const loader = new GLTFLoader();
 loader.load('/models/city/scene.gltf', (gltf) => {
     const cityModel = gltf.scene;
@@ -33,13 +32,15 @@ let carModel;
 
 loader.load('/models/car/scene.gltf', (gltf) => {
     carModel = gltf.scene;
-    carModel.scale.set(0.1, 0.1, 0.1); // Adjust the scale as needed
+    carModel.scale.set(0.1, 0.1, 0.1);
     carModel.rotation.x = Math.PI / 2;
     carModel.rotation.y = Math.PI / 2;
+    carModel.position.z = 0.5;
     scene.add(carModel);
+
+    carModel.add(camera);
 });
 
-// Handle keyboard input
 const keyboard = {};
 document.addEventListener('keydown', (event) => {
     keyboard[event.key] = true;
@@ -48,52 +49,97 @@ document.addEventListener('keyup', (event) => {
     keyboard[event.key] = false;
 });
 
-// Set initial velocity and turn speed
+const pathPoints = [];
+const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+const pathLine = new THREE.Line(pathGeometry, pathMaterial);
+scene.add(pathLine);
+
+const projectedPathPoints = [];
+const projectedPathMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+const projectedPathGeometry = new THREE.BufferGeometry().setFromPoints(projectedPathPoints);
+const projectedPathLine = new THREE.Line(projectedPathGeometry, projectedPathMaterial);
+scene.add(projectedPathLine);
+
+const projectionSteps = 100;
+
 let velocity = 0;
 const turnSpeed = 0.02;
 let carRotation = 0;
-let test = 0.01;
+let targetRotation = 0;
 
-// Animation loop
 const animate = () => {
     requestAnimationFrame(animate);
 
-    // Handle keyboard input
+    if (keyboard['t']) {
+        camera.position.y += 0.5;
+    }
+    if (keyboard['g']) {
+        camera.position.y -= 0.5;
+    }
+    if (keyboard['w']) {
+        camera.position.z += 0.5;
+    }
+    if (keyboard['s']) {
+        camera.position.z -= 0.5;
+    }
+    if (keyboard['a']) {
+        camera.position.x += 0.5;
+    }
+    if (keyboard['d']) {
+        camera.position.x -= 0.5;
+    }
     if (keyboard['ArrowUp']) {
         velocity += 0.005;
     }
     if (keyboard['ArrowDown']) {
         velocity -= 0.005;
     }
-    if (keyboard['ArrowLeft']) {
-        carRotation += turnSpeed * 2;
-        carModel.rotation.y += turnSpeed * 2;
-    }
-    if (keyboard['ArrowRight']) {
-        carRotation -= turnSpeed * 2;
-        carModel.rotation.y -= turnSpeed * 2;
-    }
 
-    // Apply friction to slow down the car
     velocity *= 0.98;
 
-    // Update car position and rotation
+    if (Math.abs(velocity) > 0.01) {
+        if (keyboard['ArrowLeft']) {
+            targetRotation += turnSpeed * 2;
+        }
+        if (keyboard['ArrowRight']) {
+            targetRotation -= turnSpeed * 2;
+        }
+    }
+
+    carRotation += (targetRotation - carRotation) * 0.1;
+
+    projectedPathPoints.length = 0;
+
+    for (let i = 0; i < projectionSteps; i++) {
+        const projectedX = carModel.position.x + Math.cos(carRotation) * velocity * i;
+        const projectedY = carModel.position.y + Math.sin(carRotation) * velocity * i;
+    
+        projectedPathPoints.push(new THREE.Vector3(projectedX, projectedY, 0.1));
+    }
+
+    projectedPathLine.geometry.setFromPoints(projectedPathPoints);
+
     carModel.position.x += Math.cos(carRotation) * velocity;
     carModel.position.y += Math.sin(carRotation) * velocity;
 
-    // Keep the car on the ground
     carModel.position.z = 0.1;
 
-    camera.position.x = carModel.position.x;
-    camera.position.y = carModel.position.y - 2.5;
+    carModel.rotation.y = carRotation + degToRad(90);
 
+    pathPoints.push(carModel.position.clone());
+
+    if (pathPoints.length > 1000) {
+        pathPoints.shift();
+    }
+
+    pathLine.geometry.setFromPoints(pathPoints);
 
     renderer.render(scene, camera);
 };
 
-// Camera setup
-camera.position.z = 4;
-camera.rotateX(0.4);
+camera.position.set(0, 40, -50);
+camera.rotateY(degToRad(180));
+camera.lookAt(0, 0, 0);
 
-// Start the animation loop
 animate();
