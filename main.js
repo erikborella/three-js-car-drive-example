@@ -15,10 +15,6 @@ const directionalLight = new THREE.DirectionalLight(0xffffff);
 directionalLight.position.set(10, 10, 20).normalize();
 scene.add(directionalLight);
 
-const pointLight = new THREE.PointLight(0xffffff, 5, 1);
-pointLight.position.set(10, 10, 20);
-scene.add(pointLight);
-
 const loader = new GLTFLoader();
 loader.load('/models/city/scene.gltf', (gltf) => {
     const cityModel = gltf.scene;
@@ -50,18 +46,20 @@ document.addEventListener('keyup', (event) => {
 });
 
 const pathPoints = [];
-const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2, });
 const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
 const pathLine = new THREE.Line(pathGeometry, pathMaterial);
+pathLine.frustumCulled = false;
 scene.add(pathLine);
 
 const projectedPathPoints = [];
 const projectedPathMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 const projectedPathGeometry = new THREE.BufferGeometry().setFromPoints(projectedPathPoints);
 const projectedPathLine = new THREE.Line(projectedPathGeometry, projectedPathMaterial);
+projectedPathLine.frustumCulled = false;
 scene.add(projectedPathLine);
 
-const projectionSteps = 100;
+const projectionSteps = 50;
 
 let velocity = 0;
 const turnSpeed = 0.02;
@@ -108,12 +106,14 @@ const animate = () => {
     }
 
     carRotation += (targetRotation - carRotation) * 0.1;
-
+    
     projectedPathPoints.length = 0;
-
+    
+    let simulatedCarRotation = carRotation;
     for (let i = 0; i < projectionSteps; i++) {
-        const projectedX = carModel.position.x + Math.cos(carRotation) * velocity * i;
-        const projectedY = carModel.position.y + Math.sin(carRotation) * velocity * i;
+        simulatedCarRotation += (targetRotation - simulatedCarRotation) * 0.1;
+        const projectedX = carModel.position.x + Math.cos(simulatedCarRotation) * velocity * i;
+        const projectedY = carModel.position.y + Math.sin(simulatedCarRotation) * velocity * i;
     
         projectedPathPoints.push(new THREE.Vector3(projectedX, projectedY, 0.1));
     }
@@ -129,7 +129,7 @@ const animate = () => {
 
     pathPoints.push(carModel.position.clone());
 
-    if (pathPoints.length > 1000) {
+    if (pathPoints.length > 500) {
         pathPoints.shift();
     }
 
