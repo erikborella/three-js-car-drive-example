@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { degToRad } from 'three/src/math/MathUtils';
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color('skyblue');
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -14,6 +15,23 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff);
 directionalLight.position.set(10, 10, 20).normalize();
 scene.add(directionalLight);
+
+
+new THREE.TextureLoader().load("/textures/grass.jpg", texture => {
+    texture.wrapS = THREE.RepeatWrapping; 
+    texture.wrapT = THREE.RepeatWrapping;
+    
+    texture.repeat.set( 100, 100 );
+    
+    const groundMaterial = new THREE.MeshLambertMaterial({ map: texture });
+    const geo = new THREE.PlaneGeometry(2000, 2000, 1, 8);
+    const plane = new THREE.Mesh(geo, groundMaterial);
+    plane.material.side = THREE.DoubleSide;
+    
+    plane.position.setZ(-0.2);
+    scene.add(plane);
+});
+
 
 const loader = new GLTFLoader();
 loader.load('/models/city/scene.gltf', (gltf) => {
@@ -62,7 +80,7 @@ scene.add(projectedPathLine);
 const projectionSteps = 50;
 
 let velocity = 0;
-const turnSpeed = 0.02;
+const turnSpeed = 0.04;
 let carRotation = 0;
 let targetRotation = 0;
 
@@ -98,10 +116,10 @@ const animate = () => {
 
     if (Math.abs(velocity) > 0.01) {
         if (keyboard['ArrowLeft']) {
-            targetRotation += turnSpeed * 2;
+            targetRotation += turnSpeed;
         }
         if (keyboard['ArrowRight']) {
-            targetRotation -= turnSpeed * 2;
+            targetRotation -= turnSpeed;
         }
     }
 
